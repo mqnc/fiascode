@@ -1,0 +1,3 @@
+C:/Users/mirko/development/cppblank/plain/build/CMakeFiles/hello.dir
+C:/Users/mirko/development/cppblank/plain/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/mirko/development/cppblank/plain/build/CMakeFiles/ZERO_CHECK.dir

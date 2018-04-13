@@ -1,0 +1,15 @@
+#hdr
+#include <stdio.h>
+#end
+
+#src
+#include "helper.h"
+#end
+
+int main(int argc, char *argv[])
+{
+	printf("Hello, World! %d \n", add1(5));
+	printf("Press the any key!\n");
+	getchar();
+	return 0;
+}

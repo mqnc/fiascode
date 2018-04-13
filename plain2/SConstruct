@@ -1,0 +1,20 @@
+
+execName = "helloWorld"
+buildDir = "build"
+
+env = Environment()
+env.VariantDir(buildDir, 'src')
+
+sourceNodes = Glob('src/*.lzz')
+
+lzzc = Builder(action = 'buildtools\lzz -c $SOURCE')
+env.Append(BUILDERS = {'Lzz' : lzzc})
+
+cppList = []
+
+for node in sourceNodes:
+	fname = str(node).replace("src", buildDir, 1)[:-4] # src/fname.lzz -> build/fname
+	env.Lzz([fname + '.h', fname + '.cpp'], fname + '.lzz')
+	cppList.append(fname + '.cpp')
+
+env.Program(execName, cppList)

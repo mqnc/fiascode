@@ -1,0 +1,3 @@
+C:/Users/mirko/development/cppblank/plain/build_gcc/CMakeFiles/hello.dir
+C:/Users/mirko/development/cppblank/plain/build_gcc/CMakeFiles/edit_cache.dir
+C:/Users/mirko/development/cppblank/plain/build_gcc/CMakeFiles/rebuild_cache.dir
