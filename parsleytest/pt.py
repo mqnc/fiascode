@@ -22,6 +22,34 @@ def exception(txt):
 	raise SyntaxError(txt)
 	return txt
 	
+def makefn(name, input, output, body):
+	res = 'struct ' + name + '_result{'
+	for par in output:
+		res += par['decl'] + '; '
+	res += '}\n'
+	res += name + '_result ' + name + '('
+	for par in input:
+		res += par['decl']
+		if par['asgn'] != None:
+			res += '=' + par['asgn']
+		res += ', '
+	res += '){\n'
+	for par in output:
+		res += '\t' + par['decl']
+		if par['asgn'] != None:
+			res += '=' + par['asgn']
+		res += ';\n'	
+	res += '#define Return return {' # ugly hack until I todo this properly
+	for par in output:
+		res += par['id'] + ', '
+	res += '};\n\n'
+	
+	res += body + '\n\n'
+	res += '\tReturn\n#undef Return'
+	res += '}\n'
+	
+	return res
+	
 fiascode = parsley.makeGrammar("""
 
 code = (known | anything)*:c -> ''.join(c)
@@ -33,6 +61,8 @@ stray = (groupstray | ifstray):estray -> exception('Stray ' + estray + ' detecte
 comment = (comment1 | comment2)
 comment1 = <'/*' (~'*/' anything)* '*/'>
 comment2 = <'//' (~'\n' anything)* '\n'>
+
+ws = (' ' | '\\t' | '\\r' | '\\n' | comment)*
 
 string = <'"' (escaped | ~'"' anything)* '"'>
 escaped = <'\\\\' anything> # we need a double backslash escape here for representing one backslash
@@ -46,7 +76,7 @@ groupstray = (')' | ']' | '}')
 identifier = <(letter | '_') (letter | '_' | digit)*>
 
 
-substitution = ifstmt | forstmt # actual fiascode 
+substitution = ifstmt | forstmt | function # actual fiascode 
 
 
 ifstmt     = 'If'     condition:cond 'Then'   ifbody:body (elseifstmt | elsestmt | endifstmt):tail ->      'if(' + cond + '){' + ''.join(body) + '}' + tail
@@ -61,31 +91,22 @@ elsebody  = (~'Endif' (known | anything))*:body -> ''.join(body)
 ifstray = ('Elseif' | 'Else' | 'Endif' | 'Then') # those should not be encountered first
 
 
+function = 'Fn' ws identifier:name ws '(' parameterlist:input ')' ws '->' ws '(' parameterlist:output ')' fnbody:body 'Endfn'-> makefn(name, input, output, body)
+parameterlist = parameter:first (',' parameter)*:rest -> [first] + rest if first!=[] else []
+parameter = ws (~(')' | ',' | '=')(known | identifier:id | anything))*:decl ('=' assignment)?:asgn -> {'decl':''.join(decl), 'id':id, 'asgn':asgn} if decl != [] else []
+assignment = (~(')' | ',')(known | anything))*:asgn -> ''.join(asgn)
+fnbody  = (~'Endfn' (known | anything))*:body -> ''.join(body)
 
 forstmt = 'For' 
 
-""", {'exception':exception})
+""", {'exception':exception, 'makefn':makefn})
 
     #for(int x=0, y=0, w=3, h=3; y<h; x++, y+=x>=w?1:0, x=x>=w?0:x){
    #     std::cout << x << y << "\n";
   #  }
 
-print(fiascode("""
-
-If a>b Then
-	If 1 Then 
-		2
-	Endif
-	b=5
-
-	If u=3 Then
-		k=4
-	Else
-		a=7
-	Endif
-Endif
-
-""").code())
+print(fiascode("""Fn a(&a, int b,   c=3)->(uint d,e=4,f) bibabu Endfn""").function())
+#print(fiascode("""Fn u()->()""").function())
 
 
 
