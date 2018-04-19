@@ -75,7 +75,7 @@ code = (known | anything)*:c -> ''.join(c)
 
 
 known = (comment | string | substitution | group | stray)
-stray = (groupstray | ifstray | fnstray | loopstray):estray -> exception('Stray ' + estray + ' detected')
+stray = (groupstray | ifstray | fnstray | loopstray | switchstray):estray -> exception('Stray ' + estray + ' detected')
 
 comment = (comment1 | comment2)
 comment1 = <'/*' (~'*/' anything)* '*/'>
@@ -95,8 +95,10 @@ groupstray = (')' | ']' | '}')
 identifier = <(letter | '_') (letter | '_' | digit)*>
 
 
-substitution = ifstmt | switchstmt | loopstmt | function # actual fiascode 
+substitution = branchstmt | loopstmt | function # actual fiascode 
 
+
+branchstmt = ifstmt | switchstmt
 
 ifstmt     = 'If'     ifcondition:cond 'Then'   ifbody:body (elseifstmt | elsestmt | endifstmt):tail ->      'if(' + cond + '){' + ''.join(body) + '}' + tail
 elseifstmt = 'Elseif' ifcondition:cond 'Then'   ifbody:body (elseifstmt | elsestmt | endifstmt):tail -> 'else if(' + cond + '){' + ''.join(body) + '}' + tail
@@ -112,22 +114,22 @@ switchstmt = 'Switch' switchcondition:cond switchbody:body 'Endswitch' -> 'switc
 switchcondition = (~'Case' (known | anything))*:cond -> ''.join(cond)
 switchbody = (case | default)+:body -> ''.join(body)
 case = 'Case' casecondition:cond 'Do' casebody:body caseend:end -> 'case ' + cond + ':\\n\\t' + body + '\\n' + end
-default = 'Default' casebody:body
+default = 'Default' casebody:body -> '\\n' 'default: ' + body
 casecondition = (~'Do' (known | anything))*:cond -> ''.join(cond)
 casebody = (~('Case' | 'Fall' | 'Default' | 'Endswitch')(known | anything))*:body -> ''.join(body)
-caseend = ('Fall' -> '') | (ws -> 'break;')
+caseend = ('Fall' ws -> '') | (ws -> 'break;')
+switchstray = ('Case' | 'Default' | 'Fall' | 'Endswitch' | 'Do')
 
 
 function = 'Fn' ws identifier:name ws inputpars:input ws outputpars:output ws fnbody:body 'Endfn'-> makefn(name, input, output, body)
 inputpars = ('(' parameterlist:input ')' | ws:input) -> input
 outputpars = ('->' ws '(' parameterlist:output ')' -> output) | ('->' ws returntype:output -> ''.join(output)) | (ws -> 'void')
 parameterlist = parameter:first (',' parameter)*:rest -> [first] + rest if first!=[] else []
-parameter = ws (~(')' | ',' | '=')(known | identifier:id | anything))*:decl ('=' assignment)?:asgn -> {'decl':''.join(decl), 'id':id, 'asgn':asgn} if decl != [] else []
+parameter = ws (~(')' | ',' | '=')(known | identifier:id | anything))*:decl ('=' parassignment)?:asgn -> {'decl':''.join(decl), 'id':id, 'asgn':asgn} if decl != [] else []
 returntype = ws (~(':=' | 'Endfn')(known | anything))*:type -> type
-assignment = (~(')' | ',')(known | anything))*:asgn -> ''.join(asgn)
+parassignment = (~(')' | ',')(known | anything))*:asgn -> ''.join(asgn)
 fnbody = (':=' (~'Endfn' (known | anything))*:body -> ''.join(body)) | (ws -> '')
 fnstray = 'Endfn'
-
 
 
 loopstmt = forstmt | whilestmt | repeatstmt
@@ -135,6 +137,9 @@ loopstmt = forstmt | whilestmt | repeatstmt
 forstmt = 'For' 
 iterator = (~'='(known | identifier:id | anything))*:decl ws '=' forassignment:asgn -> {'decl':''.join(decl), 'id':id, 'asgn':asgn} if decl != [] else []
 forassignment = (~(',' | 'Do')(known | anything))*:asgn -> ''.join(asgn)
+
+
+
 
 whilestmt = 'While' (~'Do' (known | anything))*:cond 'Do' (~'Loop' (known | anything))*:body 'Loop' -> 'while(' + ''.join(cond) + '){\\n' + ''.join(body) + '}'
 repeatstmt = 'Repeat' (~('Until' | 'Whilst')(known | anything))*:body (untilcond | whilstcond):cond 'Loop' -> 'do{\\n' + ''.join(body) + '\\n}while(' + cond + ');'
@@ -161,14 +166,14 @@ print(fiascode("""Fn f6:= Endfn""").function())
 print(fiascode("""Fn f7 -> int := Endfn""").function())
 print(fiascode("""Fn div(int x, int y)->(int q=0, int r=0):= q=x/y; r=x%y; Endfn""").function())
 print(fiascode("""Fn f9(int x, int y)->(int q=x/y, int r=x%y) Endfn""").function())
+print(fiascode("""Switch a Case 3 Do x=3; Fall Case 4 Do x=4; Default x=5 Endswitch""").code())
 '''
 
-print(fiascode("""
-Switch a
-	Case 3 Do x=3; Fall
-	Case 4 Do x=4;
-	Default x=5
-Endswitch
-""").code())
+print(fiascode("""While x<4 Do something Loop""").code())
+print(fiascode("""Repeat something Until x<54 Loop""").code())
+print(fiascode("""Repeat something Whilst x>=54 Loop""").code())
+
+
+
 
 
