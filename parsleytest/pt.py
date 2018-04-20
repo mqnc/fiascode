@@ -1,16 +1,24 @@
 import sys
 import os
+import hashlib
+from time import time
 cd = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(cd + "/parsley")
 import parsley # rename parsley/parsley.py to parsley/__init__.py
 
+# todos:
+# handle mean string literals both in parser and in prettify
+# handle keywords like static/inline/stuff
+# for iterator with Joachim stuff, always auto
+
 if 0:
-	grammar = parsley.makeGrammar("""
-		test= ('::' | ~':' anything)*:a anything*:b -> ''.join(a) + '!' + ''.join(b)
+	grammar = parsley.makeGrammar(r"""
+		test= ('ʘ':u -> "yiss" + u) | (<anything*>)
 	""", {})
 
-	print(grammar("abc::de:efg::hi").test())
+	print(grammar("ʘ").test())
 
+	sys.exit()
 
 def exception(txt):
 	raise SyntaxError(txt)
@@ -110,46 +118,29 @@ def makefn(name, input, output, body):
 	
 	return res
 
-'''
-{
-const auto va__range = va;
-auto *a__iterator = begin(va__range);
+def hash(charlist):
+	return hashlib.md5(''.join(charlist).encode("utf-8")).hexdigest()[0:10]
+	
+t0 = time()
 
-for(; a__iterator != end(va__range); a__iterator++){
-	auto &a = *a__iterator;
-	
-	
-	const auto vb__range = vb;
-	auto *b__iterator = begin(vb__range);
-	const auto vc__range = std::vc;
-	auto *c__iterator = begin(vb__range);	
-	
-	for(; b__iterator != end(vb__range) && c__iterator != end(vc__range); b__iterator++, c__iterator++){
-	
-		...
-		
-		
-		
-a:va, [int b:vb, std::c:std::vc], d:1..2, e:{1,2,3,4}	
-'''	
+fiascode = parsley.makeGrammar(r"""
 
-	
-fiascode = parsley.makeGrammar("""
-
-code = symbol*:c -> ''.join(c)
+code = symbol*:s -> ''.join(s)
 
 symbol = knownsymbol | identifier | anything
-knownsymbol = (comment | string | substitution | group | stray)
+knownsymbol = (comment | string | superstring | substitution | group | stray)
 stray = (groupstray | ifstray | fnstray | loopstray | switchstray):estray -> exception('Stray ' + estray + ' detected')
 
 comment = (comment1 | comment2)
 comment1 = <'/*' (~'*/' anything)* '*/'>
 comment2 = <'//' (~'\n' anything)* '\n'>
 
-ws = (' ' | '\\t' | '\\r' | '\\n' | comment)*
+ws = (' ' | '\t' | '\r' | '\n' | comment)*
 
 string = <'"' (escaped | ~'"' anything)* '"'>
-escaped = <'\\\\' anything> # represents one backslash (double escape needed)
+escaped = <'\\' anything> # represents one backslash
+#superstring = '°°' (~'°°' anything)*:txt '°°' -> 'std::string(u8R"' + hash(txt) + '(' + ''.join(txt) + ')' + hash(txt) + '")'
+superstring = '°°' (~'°°' anything)*:txt '°°' -> 'u8R"' + hash(txt) + '(' + ''.join(txt) + ')' + hash(txt) + '"'
 
 group = (parenthesed | bracketed | braced)
 parenthesed = '(' (~')' symbol)*:body ')' -> '(' + ''.join(body) + ')'
@@ -174,11 +165,11 @@ ifbody    = (~('Elseif' | 'Else' | 'Endif') symbol)*:body -> ''.join(body)
 elsebody  = (~'Endif' symbol)*:body -> ''.join(body)
 ifstray = ('Elseif' | 'Else' | 'Endif' | 'Then') # those should not be encountered first
 
-switchstmt = 'Switch' switchcondition:cond switchbody:body 'Endswitch' -> 'switch(' + cond + '){\\n' + body + '\\n}'
-switchcondition = (~'Case' symbol)*:cond -> ''.join(cond)
-switchbody = (case | default)+:body -> ''.join(body)
-case = 'Case' casecondition:cond 'Do' casebody:body caseend:end -> 'case ' + cond + ':\\n\\t' + body + '\\n' + end
-default = 'Default' casebody:body -> '\\n' 'default: ' + body
+switchstmt = 'Switch' switchcondition:cond switchbody:body 'Endswitch' -> 'switch(' + cond + '){\n' + body + '\n}'
+switchcondition = (~('Case' | 'Default' | 'Endswitch') symbol)*:cond -> ''.join(cond)
+switchbody = (case | default)*:body -> ''.join(body)
+case = 'Case' casecondition:cond 'Do' casebody:body caseend:end -> 'case ' + cond + ':\n\t' + body + '\n' + end
+default = 'Default' casebody:body -> '\n' 'default: ' + body
 casecondition = (~'Do' symbol)*:cond -> ''.join(cond)
 casebody = (~('Case' | 'Fall' | 'Default' | 'Endswitch')symbol)*:body -> ''.join(body)
 caseend = ('Fall' ws -> '') | (ws -> 'break;')
@@ -196,8 +187,8 @@ iterdeclaration = ('::' | ~(':' | '=') (knownsymbol | identifier:id | anything))
 iterassignment = (~(',' | 'Do' | ']')symbol)*:asgn -> ''.join(asgn)
 forbody = (~'Loop' symbol)*:body -> ''.join(body)
 
-whilestmt = 'While' (~'Do' symbol)*:cond 'Do' (~'Loop' symbol)*:body 'Loop' -> 'while(' + ''.join(cond) + '){\\n' + ''.join(body) + '}'
-repeatstmt = 'Repeat' (~('Until' | 'Whilst')symbol)*:body (untilcond | whilstcond):cond 'Loop' -> 'do{\\n' + ''.join(body) + '\\n}while(' + cond + ');'
+whilestmt = 'While' (~'Do' symbol)*:cond 'Do' (~'Loop' symbol)*:body 'Loop' -> 'while(' + ''.join(cond) + '){\n' + ''.join(body) + '}'
+repeatstmt = 'Repeat' (~('Until' | 'Whilst')symbol)*:body (untilcond | whilstcond):cond 'Loop' -> 'do{\n' + ''.join(body) + '\n}while(' + cond + ');'
 untilcond = 'Until' (~('Loop')symbol)*:cond -> '!(' + ''.join(cond) + ')'
 whilstcond = 'Whilst' (~('Loop')symbol)*:cond -> ''.join(cond)
 loopstray = ('Do' | 'Until' | 'Whilst' | 'Loop')
@@ -214,41 +205,73 @@ fnbody = (':=' (~'Endfn' symbol)*:body -> ''.join(body)) | (ws -> '')
 fnstray = ('->' | ':=' | 'Endfn')
 #todo: virtual inline static bla
 
-""", {'exception':exception, 'makefor':makefor, 'makefn':makefn})
+""", {'exception':exception, 'makefor':makefor, 'makefn':makefn, 'hash':hash})
 
+def prettify(input):
+	input = input.replace('\r\n', '\n')
+	input = input.replace('\r', '\n')
+	
+	input += '   '
+	output = ''
+	tab = 0
+	i = 0
+	imax = len(input)-2
+	while i <= imax:
+		c1 = input[i]
+		c12 = c1 + input[i+1]
+		if c12 == '//':
+			while i<imax and input[i] != '\n':
+				output += input[i]
+				i+=1
+			output += input[i]
+			i+=1			
+			continue
+		if c12 == '/*':
+			while i<imax and input[i] + input[i+1] != '*/':
+				output += input[i]
+				i+=1
+			output += input[i] + input[i+1]
+			i+=2
+			continue
+		if c1 == '{' or c1 == '(':
+			tab += 1
+		if c1 == '}' or c1 == ')':
+			tab -= 1
+		if c1 == '\n':
+			while i<imax and (input[i+1] == ' ' or input[i+1] == '\t' or input[i+1] == '\n'):
+				i+=1
+			tempback = 0
+			if input[i+1] == ')' or input[i+1] == '}':
+				tempback = 1
+
+			output += '\n'
+			for it in range(tab-tempback):
+				output += '\t'
+			i+=1
+			continue
+		
+		output += input[i]
+		i+=1
+	return output
+
+
+print("Grammar compilation time in s")
+print(time()-t0)
+t0=time()
+
+with open('test.fsc', encoding='utf-8') as fin:
+	incode = fin.read()
+fin.closed
 
 '''
-For a:va, [int b:vb, c:vc], d:1..2 Do
-
-Loop
-'''
-
-
-
-
-    #for(int x=0, y=0, w=3, h=3; y<h; x++, y+=x>=w?1:0, x=x>=w?0:x){
-   #     std::cout << x << y << "\n";
-  #  }
-'''
-print(fiascode("""Fn f1(&a, int b,   c=3)->(uint d,e=4,f):= bibabu Endfn""").function())
-print(fiascode("""Fn f2(int x)->(int y):= Endfn""").function())
-print(fiascode("""Fn f3()->():= Endfn""").function())
-print(fiascode("""Fn f4():= Endfn""").function())
-print(fiascode("""Fn f5 ->():= Endfn""").function())
-print(fiascode("""Fn f6:= Endfn""").function())
-print(fiascode("""Fn f7 -> int := Endfn""").function())
-print(fiascode("""Fn div(int x, int y)->(int q=0, int r=0):= q=x/y; r=x%y; Endfn""").function())
-print(fiascode("""Fn f9(int x, int y)->(int q=x/y, int r=x%y) Endfn""").function())
-print(fiascode("""Switch a Case 3 Do x=3; Fall Case 4 Do x=4; Default x=5 Endswitch""").code())
-print(fiascode("""While x<4 Do something Loop""").code())
 print(fiascode("""Repeat something Until x<54 Loop""").code())
 print(fiascode("""Repeat something Whilst x>=54 Loop""").code())
 '''
 
-print(fiascode("""For a=va, [int b=vb, std::c:std::vc], d:1..2, e={1,2,3,4} Do body Loop""").code())
+print(prettify(fiascode(incode).code()))
 
-print(fiascode("""For a:va, b:vb, c:vc Do body Loop""").code())
-
-
+print("Translation time in s")
+print(time()-t0)
+t0=time()
 
 
