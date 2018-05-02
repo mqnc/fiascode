@@ -9,6 +9,9 @@ int main (int argc, char * (argv) [])
 	printf("Hello, World! %d \n", add1(5));
 	printf("Press the any key!\n");
 	getchar();
+
+	int xyz;
+
 	return 0;
 }
 #undef LZZ_INLINE

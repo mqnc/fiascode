@@ -33,26 +33,21 @@ def makefor(iters, body):
 	for ig in iters: # iterate through groups
 		for it in ig: # iterate through iterators in group
 			var = it['id']
-			iter = var + '__iterator';
-			if it['type'] == '=':
-				range = var + '__range'
-				res += 'const auto ' + range + ' = ' + it['asgn'] + ';\n'
-			elif it['type'] == ':':
-				range = it['asgn']
+			range = var + '__range'
+			res += 'auto ' + range + ' = all(' + it['asgn'] + ');\n'
 			it['range'] = range
-			res += 'auto *' + iter + ' = begin(' + range + ');\n';
 			
 		res += 'for(; '
 		for it in ig: # iterate through iterators in group
-			res += it['id'] + '__iterator != end(' + it['range'] + ') && '
+			res += '!' + it['range'] + '.empty() && '
 		res = res[:-4] # delete last " && "
 		res += "; "
 		for it in ig: # iterate through iterators in group
-			res += it['id'] + '__iterator++, '
+			res += it['range'] + '.popFront(), '
 		res = res[:-2] # delete last ", "
 		res += '){\n'
 		for it in ig: # iterate through iterators in group
-			res += '\t auto &' + it['id'] + ' = *' + it['id'] + '__iterator;\n'
+			res += '\t auto &' + it['id'] + ' = ' + it['range'] + '.front();\n'
 			
 	res += '#define Break break_nesting = true; break;\n\n'
 	res += body
@@ -63,8 +58,7 @@ def makefor(iters, body):
 	
 	res += '\n}\n'
 	return res
-	
-	
+
 def makefn(name, input, output, body):
 
 	res = ''
@@ -125,7 +119,7 @@ t0 = time()
 
 fiascode = parsley.makeGrammar(r"""
 
-code = symbol*:s -> ''.join(s)
+code = symbol*:s -> '#include "pyp3c.h"\n' + ''.join(s)
 
 symbol = knownsymbol | identifier | anything
 knownsymbol = (comment | string | superstring | substitution | group | stray)
@@ -135,7 +129,7 @@ comment = (comment1 | comment2)
 comment1 = <'/*' (~'*/' anything)* '*/'>
 comment2 = <'//' (~'\n' anything)* '\n'>
 
-ws = (' ' | '\t' | '\r' | '\n' | comment)*
+ws = (' ' | '\t' | '\r' | '\n' | comment)*:space -> ''.join(space)
 
 string = <'"' (escaped | ~'"' anything)* '"'>
 escaped = <'\\' anything> # represents one backslash
@@ -158,7 +152,7 @@ branchstmt = ifstmt | switchstmt
 
 ifstmt     = 'If'     ifcondition:cond 'Then'   ifbody:body (elseifstmt | elsestmt | endifstmt):tail ->      'if(' + cond + '){' + ''.join(body) + '}' + tail
 elseifstmt = 'Elseif' ifcondition:cond 'Then'   ifbody:body (elseifstmt | elsestmt | endifstmt):tail -> 'else if(' + cond + '){' + ''.join(body) + '}' + tail
-elsestmt   = 'Else'                         elsebody:body                          endifstmt :tail -> 'else{'                  + ''.join(body) + '}' + tail
+elsestmt   = 'Else'                           elsebody:body                          endifstmt :tail -> 'else{'                  + ''.join(body) + '}' + tail
 endifstmt  = 'Endif' -> ''
 ifcondition = (~'Then' symbol)*:cond -> ''.join(cond)
 ifbody    = (~('Elseif' | 'Else' | 'Endif') symbol)*:body -> ''.join(body)
@@ -181,9 +175,8 @@ loopstmt = forstmt | whilestmt | repeatstmt
 forstmt = 'For' iteratorlist:iters 'Do' forbody:body 'Loop' -> makefor(iters, body)
 iteratorlist = ws iteratoritem:first ws (',' ws iteratoritem)*:rest -> [first] + rest
 iteratoritem = (iteratorgroup:iter -> iter) | (iterator:iter -> [iter])
-iteratorgroup = '[' iterator:first (',' ws iterator)*:rest ']' -> [first] + rest
-iterator = iterdeclaration:iter (':' | '='):type iterassignment:asgn -> {'decl':iter['decl'], 'id':iter['id'], 'type':type, 'asgn':asgn}
-iterdeclaration = ('::' | ~(':' | '=') (knownsymbol | identifier:id | anything))*:decl -> {'decl':''.join(decl), 'id':id}
+iteratorgroup = '[' iterator:first (',' ws iterator)*:rest ']' ws -> [first] + rest
+iterator = identifier:id ws ':' ws iterassignment:asgn -> {'id':id, 'asgn':asgn}
 iterassignment = (~(',' | 'Do' | ']')symbol)*:asgn -> ''.join(asgn)
 forbody = (~'Loop' symbol)*:body -> ''.join(body)
 
