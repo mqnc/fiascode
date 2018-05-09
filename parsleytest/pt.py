@@ -126,7 +126,7 @@ stray = (groupstray | ifstray | fnstray | loopstray | switchstray):estray -> exc
 
 comment = (comment1 | comment2 | comment3)
 comment1 = <'/*' (~'*/' anything)* '*/'>
-comment2 = <'//' (~'\n' anything)* '\n'>
+comment2 = '//' (~'\n' anything)*:cmt '\n' -> '/*' + ''.join(cmt) + '*/\n' # lzz sometimes deletes line breaks
 comment3 = '\\*' (~'*\\' (innercomment3 | anything))*:cmt '*\\' -> '/*' + ''.join(cmt) + '*/'
 innercomment3 = '\\*' (~'*\\' (innercomment3 | anything))*:cmt '*\\' -> '/*' + ''.join(cmt) + '* /'
 
@@ -219,25 +219,30 @@ def prettify(input):
 	while i <= imax:
 		c1 = input[i]
 		c12 = c1 + input[i+1]
-		if c12 == '//':
+		
+		if c12 == '//': # we are inside a // comment, continue until it's over
 			while i<imax and input[i] != '\n':
 				output += input[i]
 				i+=1
 			output += input[i]
 			i+=1			
 			continue
-		if c12 == '/*':
+			
+		if c12 == '/*': # we are inside a /* */ comment, continue until it's over
 			while i<imax and input[i] + input[i+1] != '*/':
 				output += input[i]
 				i+=1
 			output += input[i] + input[i+1]
 			i+=2
 			continue
-		if c1 == '{' or c1 == '(':
+			
+		if c1 == '{' or c1 == '(': # increase tab indent
 			tab += 1
-		if c1 == '}' or c1 == ')':
+			
+		if c1 == '}' or c1 == ')': # decrease tab indent
 			tab -= 1
-		if c1 == '\n':
+			
+		if c1 == '\n': # line break, add tabs
 			while i<imax and (input[i+1] == ' ' or input[i+1] == '\t' or input[i+1] == '\n'):
 				i+=1
 			tempback = 0
