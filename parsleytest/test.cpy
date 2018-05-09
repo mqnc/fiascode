@@ -30,6 +30,8 @@ Fn main(int argc, char *argv[]) -> int:=
 		cout << "a is not 0 or 1 or 2";
 	Endif		
 	
+	\* °°this is a°° \* °°nested°° \* °°very nested°° *\*\
+	°°multiline comment°° *\
 	
 	Switch a
 	Endswitch
@@ -42,7 +44,12 @@ Fn main(int argc, char *argv[]) -> int:=
 	Switch a
 		Case 0 Do
 			cout << a;
-	Endswitch	
+	Endswitch
+
+	Switch a
+		Case 1,2,3 Do
+			cout << a;
+	Endswitch
 
 	Switch a
 		Case 0 Do
@@ -54,7 +61,7 @@ Fn main(int argc, char *argv[]) -> int:=
 		Case 0 Do
 			cout << a;
 			Fall
-		Case 1 Do
+		Case 1, 2, 3 Do
 			cout << a;
 		Default
 			cout << a;
@@ -90,12 +97,17 @@ Fn main(int argc, char *argv[]) -> int:=
 	
 	For [i:vi, j:vj] Do
 		j=i;
-	Loop	
+	Loop
 	
 	For x:{1,2,3}, y:{4,5,6}, [i:vi, j:vj] Do
 		j=i;
 	Loop
+
+	For i:1|..|5 Do
+	Loop
 	
+	For i:0... Do
+	Loop
 	
 	cout << °°test°° << std::endl;
 	system("pause");
@@ -110,11 +122,13 @@ Fn f2() Endfn
 
 Fn f3 -> int Endfn
 
+Fn f35 [virtual private inline] -> int Endfn
+
 Fn f4 -> (int r) Endfn
 
 Fn f5:= return 0; Endfn
 
-Fn f6(int x=0, int y=1) -> (int q=x/y, int r=x%y) Endfn
+Fn f6[mutable const](int x=0, int y=1) -> (int q=x/y, int r=x%y) Endfn
 
 Fn f7( // nicely commented function
 		int a=1, // first input parameter

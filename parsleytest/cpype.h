@@ -21,6 +21,10 @@ namespace
 		void popFront() {
 			++mBegin;
 		}
+		
+		void popEnd() {
+			--mEnd;
+		}		
  
 		friend Iterator const& begin(iterator_range const& rng) {
 			return rng.mBegin;

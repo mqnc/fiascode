@@ -8,8 +8,6 @@ import parsley # rename parsley/parsley.py to parsley/__init__.py
 
 # todos:
 # handle mean string literals both in parser and in prettify
-# handle keywords like static/inline/stuff
-# for iterator with Joachim stuff, always auto
 
 if 0:
 	grammar = parsley.makeGrammar(r"""
@@ -34,7 +32,7 @@ def makefor(iters, body):
 		for it in ig: # iterate through iterators in group
 			var = it['id']
 			range = var + '__range'
-			res += 'auto ' + range + ' = all(' + it['asgn'] + ');\n'
+			res += 'auto ' + range + ' = all(' + str(it['asgn']) + ');\n'
 			it['range'] = range
 			
 		res += 'for(; '
@@ -59,12 +57,13 @@ def makefor(iters, body):
 	res += '\n}\n'
 	return res
 
-def makefn(name, input, output, body):
+def makefn(name, qualis, input, output, body):
 
 	res = ''
+	if qualis==None: qualis=''
 	
 	if isinstance(output, str): # output is a string, not a list -> no struct for return
-		res = output + ' ' + name + '('
+		res = qualis + ' ' + output + ' ' + name + '('
 		for par in input:
 			res += par['decl']
 			if par['asgn'] != None: res += '=' + par['asgn']
@@ -78,7 +77,7 @@ def makefn(name, input, output, body):
 		for par in output:
 			res += par['decl'] + '; '
 		res += '};\n'
-		res += name + '__result ' + name + '('
+		res += qualis + ' ' + name + '__result ' + name + '('
 		for par in input:
 			res += par['decl']
 			if par['asgn'] != None: res += '=' + par['asgn']
@@ -119,15 +118,17 @@ t0 = time()
 
 fiascode = parsley.makeGrammar(r"""
 
-code = symbol*:s -> '#include "pyp3c.h"\n' + ''.join(s)
+code = symbol*:s -> '#include "cpype.h"\n' + ''.join(s)
 
 symbol = knownsymbol | identifier | anything
 knownsymbol = (comment | string | superstring | substitution | group | stray)
 stray = (groupstray | ifstray | fnstray | loopstray | switchstray):estray -> exception('Stray ' + estray + ' detected')
 
-comment = (comment1 | comment2)
+comment = (comment1 | comment2 | comment3)
 comment1 = <'/*' (~'*/' anything)* '*/'>
 comment2 = <'//' (~'\n' anything)* '\n'>
+comment3 = '\\*' (~'*\\' (innercomment3 | anything))*:cmt '*\\' -> '/*' + ''.join(cmt) + '*/'
+innercomment3 = '\\*' (~'*\\' (innercomment3 | anything))*:cmt '*\\' -> '/*' + ''.join(cmt) + '* /'
 
 ws = (' ' | '\t' | '\r' | '\n' | comment)*:space -> ''.join(space)
 
@@ -145,7 +146,7 @@ groupstray = (')' | ']' | '}')
 identifier = <(letter | '_') (letter | '_' | digit)*>
 
 
-substitution = branchstmt | loopstmt | functionstmt # actual fiascode 
+substitution = branchstmt | loopstmt | functionstmt # actual language grammar 
 
 
 branchstmt = ifstmt | switchstmt
@@ -162,9 +163,10 @@ ifstray = ('Elseif' | 'Else' | 'Endif' | 'Then') # those should not be encounter
 switchstmt = 'Switch' switchcondition:cond switchbody:body 'Endswitch' -> 'switch(' + cond + '){\n' + body + '\n}'
 switchcondition = (~('Case' | 'Default' | 'Endswitch') symbol)*:cond -> ''.join(cond)
 switchbody = (case | default)*:body -> ''.join(body)
-case = 'Case' casecondition:cond 'Do' casebody:body caseend:end -> 'case ' + cond + ':\n\t' + body + '\n' + end
+case = 'Case' caseconditiongroup:cond 'Do' casebody:body caseend:end -> cond + '\n\t' + body + '\n' + end
 default = 'Default' casebody:body -> '\n' 'default: ' + body
-casecondition = (~'Do' symbol)*:cond -> ''.join(cond)
+caseconditiongroup = casecondition:first (',' ws casecondition)*:rest ws -> ' '.join([first] + rest)
+casecondition = (~('Do' | ',') symbol)*:cond -> 'case ' + ''.join(cond) + ':'
 casebody = (~('Case' | 'Fall' | 'Default' | 'Endswitch')symbol)*:body -> ''.join(body)
 caseend = ('Fall' ws -> '') | (ws -> 'break;')
 switchstray = ('Case' | 'Default' | 'Fall' | 'Endswitch' | 'Do')
@@ -177,7 +179,12 @@ iteratorlist = ws iteratoritem:first ws (',' ws iteratoritem)*:rest -> [first] +
 iteratoritem = (iteratorgroup:iter -> iter) | (iterator:iter -> [iter])
 iteratorgroup = '[' iterator:first (',' ws iterator)*:rest ']' ws -> [first] + rest
 iterator = identifier:id ws ':' ws iterassignment:asgn -> {'id':id, 'asgn':asgn}
-iterassignment = (~(',' | 'Do' | ']')symbol)*:asgn -> ''.join(asgn)
+iterassignment = rangeiterator | otheriterator
+rangeiterator = rangefrom:frm rangeoperator:oper rangeto:to -> {'from':frm, 'oper':oper, 'to':to}
+rangefrom = (~(rangeoperator | ',' | ']' | 'Do')symbol)*:iter -> ''.join(iter) # ',' | ']' | 'Do' has to be matched in order to break out when we are actually in "otheriterator"
+rangeoperator = ('|..|' | '|..' | '..|' | '...' | '..')
+rangeto = (~(',' | 'Do' | ']')symbol)*:iter -> ''.join(iter)
+otheriterator = (~(',' | 'Do' | ']')symbol)*:asgn -> ''.join(asgn)
 forbody = (~'Loop' symbol)*:body -> ''.join(body)
 
 whilestmt = 'While' (~'Do' symbol)*:cond 'Do' (~'Loop' symbol)*:body 'Loop' -> 'while(' + ''.join(cond) + '){\n' + ''.join(body) + '}'
@@ -187,7 +194,8 @@ whilstcond = 'Whilst' (~('Loop')symbol)*:cond -> ''.join(cond)
 loopstray = ('Do' | 'Until' | 'Whilst' | 'Loop')
 
 
-functionstmt = 'Fn' ws identifier:name ws inputpars:input ws outputpars:output ws fnbody:body 'Endfn'-> makefn(name, input, output, body)
+functionstmt = 'Fn' ws identifier:name ws qualifiers?:qualis ws inputpars:input ws outputpars:output ws fnbody:body 'Endfn'-> makefn(name, qualis, input, output, body)
+qualifiers = '[' (~']' symbol)*:qualis ']' -> ''.join(qualis)
 inputpars = ('(' parameterlist:input ')' | ws:input) -> input
 outputpars = ('->' ws '(' parameterlist:output ')' -> output) | ('->' ws returntype:output -> ''.join(output)) | (ws -> 'void')
 parameterlist = parameter:first (',' parameter)*:rest -> [first] + rest if first!=[] else []
@@ -196,7 +204,6 @@ returntype = ws (~(':=' | 'Endfn')symbol)*:type -> type
 parassignment = (~(')' | ',')symbol)*:asgn -> ''.join(asgn)
 fnbody = (':=' (~'Endfn' symbol)*:body -> ''.join(body)) | (ws -> '')
 fnstray = ('->' | ':=' | 'Endfn')
-#todo: virtual inline static bla
 
 """, {'exception':exception, 'makefor':makefor, 'makefn':makefn, 'hash':hash})
 
@@ -252,7 +259,7 @@ print("Grammar compilation time in s")
 print(time()-t0)
 t0=time()
 
-with open('test.fsc', encoding='utf-8') as fin:
+with open('test.cpy', encoding='utf-8') as fin:
 	incode = fin.read()
 fin.closed
 
