@@ -6,15 +6,12 @@ cd = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(cd + "/parsley")
 import parsley # rename parsley/parsley.py to parsley/__init__.py
 
-# todos:
-# handle mean string literals both in parser and in prettify
-
 if 0:
 	grammar = parsley.makeGrammar(r"""
-		test= ('ʘ':u -> "yiss" + u) | (<anything*>)
+		test= letter*:n (~token(n) anything)*:inner token(n) -> inner
 	""", {})
 
-	print(grammar("ʘ").test())
+	print(grammar("wurst abc wurst").test())
 
 	sys.exit()
 
@@ -121,7 +118,7 @@ fiascode = parsley.makeGrammar(r"""
 code = symbol*:s -> '#include "cpype.h"\n' + ''.join(s)
 
 symbol = knownsymbol | identifier | anything
-knownsymbol = (comment | string | superstring | substitution | group | stray)
+knownsymbol = (comment | string | substitution | group | stray)
 stray = (groupstray | ifstray | fnstray | loopstray | switchstray):estray -> exception('Stray ' + estray + ' detected')
 
 comment = (comment1 | comment2 | comment3)
@@ -132,9 +129,12 @@ innercomment3 = '\\*' (~'*\\' (innercomment3 | anything))*:cmt '*\\' -> '/*' + '
 
 ws = (' ' | '\t' | '\r' | '\n' | comment)*:space -> ''.join(space)
 
-string = <'"' (escaped | ~'"' anything)* '"'>
+string = simplestring | nakedrawstring | delimrawstring | superstring
+
+simplestring = <'"' (escaped | ~'"' anything)* '"'>
 escaped = <'\\' anything> # represents one backslash
-#superstring = '°°' (~'°°' anything)*:txt '°°' -> 'std::string(u8R"' + hash(txt) + '(' + ''.join(txt) + ')' + hash(txt) + '")'
+nakedrawstring = <'R"(' (~')"' anything)* ')"'>
+delimrawstring = <'R"' (~'(' anything)*:delim (~(')' token(delim) '"') anything)* ')' token(delim) '"'>
 superstring = '°°' (~'°°' anything)*:txt '°°' -> 'u8R"' + hash(txt) + '(' + ''.join(txt) + ')' + hash(txt) + '"'
 
 group = (parenthesed | bracketed | braced)
@@ -211,7 +211,7 @@ def prettify(input):
 	input = input.replace('\r\n', '\n')
 	input = input.replace('\r', '\n')
 	
-	input += '   '
+	input = '   \n' + input + '\n   ' # so indices don't overflow
 	output = ''
 	tab = 0
 	i = 0
@@ -234,6 +234,33 @@ def prettify(input):
 				i+=1
 			output += input[i] + input[i+1]
 			i+=2
+			continue
+			
+		if c12 == 'R"': # we are inside a raw string literal, continue until it's over
+			#output += "S2<"
+			delim = ""
+			output += c12
+			i+=2
+			while i<imax and input[i] != '(':
+				delim += input[i]
+				output += input[i]
+				i+=1
+			endpos = input.find(')' + delim + '"', i) + len(delim) + 2
+			output += input[i:endpos]
+			i = endpos
+			#output += ">S2"
+			continue
+			
+		if c1 == '"': # we are inside a normal string, continue until it's over
+			#output += "S1<"
+			output += c1
+			i+=1
+			while i<imax and input[i] != '"' or input[i-1] == '\\':
+				output += input[i]
+				i+=1
+			output += '"'
+			i+=1
+			#output += ">S1"
 			continue
 			
 		if c1 == '{' or c1 == '(': # increase tab indent

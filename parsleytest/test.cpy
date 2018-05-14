@@ -109,7 +109,7 @@ Fn main(int argc, char *argv[]) -> int:=
 	For i:0... Do
 	Loop
 	
-	cout << °°test°° << std::endl;
+	cout << °°test°° << °°°° << "\"test\"" << "" "" << R"(test)" << R"  /token  (test)  /token  " << std::endl;
 	system("pause");
 	
 	return 0;
