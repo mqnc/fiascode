@@ -8,10 +8,14 @@ import parsley # rename parsley/parsley.py to parsley/__init__.py
 
 if 0:
 	grammar = parsley.makeGrammar(r"""
-		test= letter*:n (~token(n) anything)*:inner token(n) -> inner
-	""", {})
+		tests = test*:t -> t
+		test = test1 | test2
+		test1 = 'a' -> cunt.get()
+		test2 = 'w' -> cunt.inc()
+		
+	""", {'cunt':cunt})
 
-	print(grammar("wurst abc wurst").test())
+	print(grammar("awaawaawaawa").tests())
 
 	sys.exit()
 
@@ -20,21 +24,58 @@ def exception(txt):
 	return txt
 
 
-def makefor(iters, body):
+class LoopCounter():
+	c = 0;
+	def inc_get(self):
+		self.c = self.c+1;
+		return self.c;
+loopcount = LoopCounter()
+	
+def makefor(iters, body, counter):
 
 	res = '{\n'
 	res += 'bool break_nesting = false;\n'
 
 	for ig in iters: # iterate through groups
 		for it in ig: # iterate through iterators in group
-			var = it['id']
-			range = var + '__range'
-			res += 'auto ' + range + ' = all(' + str(it['asgn']) + ');\n'
-			it['range'] = range
+			asgn = it['asgn'];
+			var = it['id'];
+		
+			if asgn['type'] == 'set':
+				range = var + '__range'
+				res += 'auto ' + range + ' = all(' + asgn['set'] + ');\n'
+				it['range'] = range
+				
+			if asgn['type'] == 'range':
+				range = var + '__range'				
+				
+				if asgn['oper'] == '|...' or asgn['oper'] == '|...':	
+					res += 'auto ' + range + ' = all(' + asgn['from'] + ', ' + asgn['from'] + ');\n' # from, from
+				else:
+					res += 'auto ' + range + ' = all(' + asgn['from'] + ', ' + asgn['to'] + ');\n' # from, to
+			
+				if(asgn['oper'] == '..'):
+					res += range + '.pushEnd();\n';
+				if(asgn['oper'] == '|..'):
+					res += range + '.popFront();\n';
+					res += range + '.pushEnd();\n';					
+				if(asgn['oper'] == '..|'):
+					pass
+				if(asgn['oper'] == '|..|'):
+					res += range + '.popFront();\n';
+				if(asgn['oper'] == '|...'):
+					res += range + '.popFront();\n';
+				if(asgn['oper'] == '...'):
+					pass
+					
+				it['range'] = range				
 			
 		res += 'for(; '
 		for it in ig: # iterate through iterators in group
-			res += '!' + it['range'] + '.empty() && '
+			if(it['asgn']['type'] == 'range' and (it['asgn']['oper'] == '...' or it['asgn']['oper'] == '|...')):
+				res += 'true /*' + it['id'] + ' loops forever*/ && '
+			else:
+				res += '!' + it['range'] + '.empty() && '
 		res = res[:-4] # delete last " && "
 		res += "; "
 		for it in ig: # iterate through iterators in group
@@ -44,14 +85,15 @@ def makefor(iters, body):
 		for it in ig: # iterate through iterators in group
 			res += '\t auto &' + it['id'] + ' = ' + it['range'] + '.front();\n'
 			
-	res += '#define Break break_nesting = true; break;\n\n'
+	res += '#define Break goto loopend__' + str(counter) + ';\n\n'
 	res += body
 	res += '\n\n#undef Break\n'
 	
 	for ig in iters: # iterate through groups
-		res += 'if(break_nesting){break;}\n}\n'
+		res += '\n}\n'
 	
 	res += '\n}\n'
+	res += 'loopend__' + str(counter) + ':\n'
 	return res
 
 def makefn(name, qualis, input, output, body):
@@ -174,17 +216,17 @@ switchstray = ('Case' | 'Default' | 'Fall' | 'Endswitch' | 'Do')
 
 loopstmt = forstmt | whilestmt | repeatstmt
 
-forstmt = 'For' iteratorlist:iters 'Do' forbody:body 'Loop' -> makefor(iters, body)
+forstmt = 'For' iteratorlist:iters 'Do' forbody:body 'Loop' -> makefor(iters, body, loopcount.inc_get())
 iteratorlist = ws iteratoritem:first ws (',' ws iteratoritem)*:rest -> [first] + rest
 iteratoritem = (iteratorgroup:iter -> iter) | (iterator:iter -> [iter])
 iteratorgroup = '[' iterator:first (',' ws iterator)*:rest ']' ws -> [first] + rest
 iterator = identifier:id ws ':' ws iterassignment:asgn -> {'id':id, 'asgn':asgn}
 iterassignment = rangeiterator | otheriterator
-rangeiterator = rangefrom:frm rangeoperator:oper rangeto:to -> {'from':frm, 'oper':oper, 'to':to}
+rangeiterator = rangefrom:frm rangeoperator:oper rangeto:to -> {'type':'range', 'from':frm, 'oper':oper, 'to':to}
 rangefrom = (~(rangeoperator | ',' | ']' | 'Do')symbol)*:iter -> ''.join(iter) # ',' | ']' | 'Do' has to be matched in order to break out when we are actually in "otheriterator"
-rangeoperator = ('|..|' | '|..' | '..|' | '...' | '..')
+rangeoperator = ('|..|' | '|...' | '|..' | '..|' | '...' | '..')
 rangeto = (~(',' | 'Do' | ']')symbol)*:iter -> ''.join(iter)
-otheriterator = (~(',' | 'Do' | ']')symbol)*:asgn -> ''.join(asgn)
+otheriterator = (~(',' | 'Do' | ']')symbol)*:asgn -> {'type':'set', 'set':''.join(asgn)}
 forbody = (~'Loop' symbol)*:body -> ''.join(body)
 
 whilestmt = 'While' (~'Do' symbol)*:cond 'Do' (~'Loop' symbol)*:body 'Loop' -> 'while(' + ''.join(cond) + '){\n' + ''.join(body) + '}'
@@ -205,7 +247,7 @@ parassignment = (~(')' | ',')symbol)*:asgn -> ''.join(asgn)
 fnbody = (':=' (~'Endfn' symbol)*:body -> ''.join(body)) | (ws -> '')
 fnstray = ('->' | ':=' | 'Endfn')
 
-""", {'exception':exception, 'makefor':makefor, 'makefn':makefn, 'hash':hash})
+""", {'exception':exception, 'makefor':makefor, 'loopcount':loopcount, 'makefn':makefn, 'hash':hash})
 
 def prettify(input):
 	input = input.replace('\r\n', '\n')

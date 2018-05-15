@@ -1,7 +1,9 @@
 
+#hdr
 #include<iostream>
 #include<cstdlib>
 #include<vector>
+#end
 
 using namespace std;
 
@@ -103,10 +105,7 @@ Fn main(int argc, char *argv[]) -> int:=
 		j=i;
 	Loop
 
-	For i:1|..|5 Do
-	Loop
-	
-	For i:0... Do
+	For [i:1..5, j:1|..5, k:1..|5, l:1|..|5, m:1..., n:1|...] Do
 	Loop
 	
 	cout << °°test°° << °°°° << "\"test\"" << "" "" << R"(test)" << R"  /token  (test)  /token  " << std::endl;
