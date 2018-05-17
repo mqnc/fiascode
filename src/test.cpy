@@ -148,8 +148,6 @@ Fn main(int argc, char *argv[]) -> int:=
 	auto ab = fullMontyAndNicelyCommented(2);
 	cout << "14=" << ab.a_new << ", 18=" << ab.b_new << endl;
 
-	system("pause");
-
 	return 0;
 Endfn
 

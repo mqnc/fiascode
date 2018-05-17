@@ -6,7 +6,7 @@ import cpype
 execName = "program"
 buildDir = "build"
 
-env = Environment()
+env = Environment(CXXFLAGS="-std=c++14")
 env.VariantDir(buildDir, 'src')
 
 sourceNodes = Glob(os.path.join('src', '*.cpy'))
