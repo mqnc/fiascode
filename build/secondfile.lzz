@@ -1,0 +1,7 @@
+   
+#hdr
+#include "cpype.h"
+#end
+int  eight(){
+	return 8; 
+}

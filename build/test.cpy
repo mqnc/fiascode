@@ -130,7 +130,7 @@ Fn main(int argc, char *argv[]) -> int:=
 			Break
 		Endif
 	Loop
-	
+	    
 	cout << "Raw UTF8 String: " << °°Привет, мир!°° << endl;
 	cout << "Mean escape tests: " << °°test°° << °°"\n° °° << "\"test\"" << "" "" << R"(test)" << R"//token(  test  )//token" << std::endl;
 	

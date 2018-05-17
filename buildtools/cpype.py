@@ -311,22 +311,27 @@ def prettify(input):
 		i+=1
 	return output
 
-
 print("Grammar compilation time in s")
 print(time()-t0)
-t0=time()
 
-with open(sys.argv[1], encoding='utf-8') as fin:
-	incode = fin.read()
-fin.closed
+def translate(target, source, env):
 
-translated = prettify(fiascode(incode).code())
+	t0=time()
 
-with open(sys.argv[2], 'w', encoding='utf-8') as fout:
-	fout.write(translated)
-fin.closed
+	#with open(sys.argv[1], encoding='utf-8') as fin:
+	with open(str(source[0]), encoding='utf-8') as fin:
+		incode = fin.read()
 
-print("Translation time in s")
-print(time()-t0)
+	translated = prettify(fiascode(incode).code())
+
+	#with open(sys.argv[2], 'w', encoding='utf-8') as fout:
+	with open(str(target[0]), 'w', encoding='utf-8') as fout:
+		fout.write(translated)
+
+	print("Translation time in s")
+	print(time()-t0)
+	
+	return None
+
 
 

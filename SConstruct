@@ -1,4 +1,8 @@
 
+import sys
+sys.path.append("buildtools")
+import cpype
+
 execName = "program"
 buildDir = "build"
 
@@ -7,7 +11,9 @@ env.VariantDir(buildDir, 'src')
 
 sourceNodes = Glob('src/*.cpy')
 
-cpypec = Builder(action = '"C:\Program Files\Python36\python" buildtools\cpype.py $SOURCE $TARGET')
+#cpypec = Builder(action = '"C:\Program Files\Python36\python" buildtools\cpype.py $SOURCE $TARGET')
+cpypec = Builder(action = cpype.translate, suffix=".lzz", src_suffix=".pyc")
+
 env.Append(BUILDERS = {'CPype' : cpypec})
 
 lzzc = Builder(action = 'buildtools\lzz -c $SOURCE')
