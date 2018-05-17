@@ -4,7 +4,7 @@ import hashlib
 from time import time
 cd = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(cd + "/parsley")
-import parsley # rename parsley/parsley.py to parsley/__init__.py
+import parsley
 
 
 def exception(txt):

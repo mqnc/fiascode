@@ -1,5 +1,6 @@
 .sconsign.dblite
 build
+shed
 program
 program.exe
 __pycache__

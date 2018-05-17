@@ -1,1 +1,1 @@
-python buildtools/scons/scons.py
+python buildtools/scons-local-3.0.0/scons.py

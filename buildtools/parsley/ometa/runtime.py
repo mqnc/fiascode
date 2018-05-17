@@ -740,7 +740,7 @@ class OMetaBase(object):
         """
         m = self.input
         try:
-            #self.eatWhitespace() # this had to be removed for c++ raw strings to be parsed
+            self.eatWhitespace()
             for c in tok:
                 v, e = self.exactly(c)
             return tok, e
