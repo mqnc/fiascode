@@ -1,6 +1,6 @@
-.sconsign.dblite
-build
-shed
+build/
+__pycache__/
+shed/
 program
 program.exe
-__pycache__
+.sconsign.dblite
