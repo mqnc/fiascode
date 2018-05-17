@@ -113,7 +113,7 @@ See https://www.codeproject.com/Messages/5496927/What-is-the-fastest-and-bestest
 
 ## Caveats
 
-Be aware that there is currently no editor that supports code completion, folding or syntax highlighting for this. If you can live with that, have fun! Once the incredible value of this project has been recognized by a large community, all those things will probably be created by the cloud crowd in no time, right? :-)
+Be aware that there is currently no editor that supports code completion, folding or syntax highlighting for this. And you have to debug in three layers of code. If you can live with that, have fun! Once the incredible value of this project has been recognized by a large community, all those things will probably be dealt with by the cloud crowd in no time, right? :-)
 
 ## License
 
