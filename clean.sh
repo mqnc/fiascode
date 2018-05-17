@@ -1,1 +1,3 @@
-rm -rf build
+rm -r build
+rm .sconsign.dblite
+rm program

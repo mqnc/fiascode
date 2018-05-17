@@ -1,2 +1,5 @@
 .sconsign.dblite
 build
+program
+program.exe
+__pycache__
