@@ -93,7 +93,7 @@ cout << "20/7 is " << result.q << " with remainder " << result.r << endl;
 
 ### The little things
 ```
-cout <<
+cout << °°Привет, мир!°° // UTF8 raw strings
 ```
 
 See test.cpy for more details and look at the generated test.lzz (or test.cpp and test.h) files to see what happens to your code.
