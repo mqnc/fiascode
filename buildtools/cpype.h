@@ -13,7 +13,6 @@ namespace
 		{}
  
 		bool empty() const {return mBegin == mEnd;}
-		auto front() const {return *mBegin;}
 		void popFront() {++mBegin;}
 		void popEnd() {--mEnd;}
 		friend Iterator const& begin(iterator_range const& rng) {return rng.mBegin;}

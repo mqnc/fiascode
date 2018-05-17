@@ -47,24 +47,26 @@ def makefor(iters, body, counter):
 					
 		res += 'for(; '
 		for it in ig: # iterate through iterators in group
-			if(it['asgn']['type'] == 'range' and it['asgn']['oper'] == '...'):
+			if it['asgn']['type'] == 'range' and it['asgn']['oper'] == '...':
 				res += 'true /*' + it['id'] + ' loops forever*/ && '
 			else:
 				res += '!' + it['box'] + '.empty() && '
 		res = res[:-4] # delete last " && "
 		res += "; "
 		for it in ig: # iterate through iterators in group
-			if(it['asgn']['type'] == 'range' and it['asgn']['oper'] == '...'):
+			if it['asgn']['type'] == 'range' and it['asgn']['oper'] == '...':
 				res += it['box'] + '++, '
 			else:
 				res += it['box'] + '.popFront(), '
 		res = res[:-2] # delete last ", "
 		res += '){\n'
 		for it in ig: # iterate through iterators in group
-			if(it['asgn']['type'] == 'range' and it['asgn']['oper'] == '...'):
+			if it['asgn']['type'] == 'range' and it['asgn']['oper'] == '...':
 				pass
+			elif it['asgn']['type'] == 'range' and it['asgn']['oper'] == '=>':
+				res += '\t const auto ' + it['id'] + ' = begin(' + it['box'] + ');\n'
 			else:		
-				res += '\t auto ' + it['id'] + ' = ' + it['box'] + '.front();\n'
+				res += '\t auto &' + it['id'] + ' = *begin(' + it['box'] + ');\n'
 			
 	res += '#define Break goto loopend__' + str(counter) + ';\n\n'
 	res += body
@@ -205,7 +207,7 @@ iterator = identifier:id ws ':' ws iterassignment:asgn -> {'id':id, 'asgn':asgn}
 iterassignment = rangeiterator | otheriterator
 rangeiterator = rangefrom:frm rangeoperator:oper rangeto:to -> {'type':'range', 'from':frm, 'oper':oper, 'to':to}
 rangefrom = (~(rangeoperator | ',' | ']' | 'Do')symbol)*:iter -> ''.join(iter) # ',' | ']' | 'Do' has to be matched in order to break out when we are actually in "otheriterator"
-rangeoperator = ('...' | '->')
+rangeoperator = ('...' | '=>')
 rangeto = (~(',' | 'Do' | ']')symbol)*:iter -> ''.join(iter)
 otheriterator = (~(',' | 'Do' | ']')symbol)*:asgn -> {'type':'collection', 'collection':''.join(asgn)}
 forbody = (~'Loop' symbol)*:body -> ''.join(body)
