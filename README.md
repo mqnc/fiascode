@@ -6,7 +6,7 @@ Your program is written as a bunch of .cpy files. They are translated into lzz f
 
 ## Examples
 
-So far, C-Pype supports the following constructs:
+So far, C-Pype supports the following constructs:  
 (powerful for loops and functions with multiple return parameters are the main selling points, scroll down a bit if you are in a hurry)
 
 ### If statements without parantheses and braces
@@ -91,6 +91,11 @@ auto result = div(20, 7);
 cout << "20/7 is " << result.q << " with remainder " << result.r << endl;
 ```
 
+### The little things
+```
+cout <<
+```
+
 See test.cpy for more details and look at the generated test.lzz (or test.cpp and test.h) files to see what happens to your code.
 
 ## Dependencies
@@ -105,6 +110,10 @@ All dependencies are included and everything should work out of the box hopefull
 ## Background
 
 See https://www.codeproject.com/Messages/5496927/What-is-the-fastest-and-bestest-programming-langua.aspx
+
+## Caveats
+
+Be aware that there is currently no editor that supports code completion, folding or syntax highlighting for this. If you can live with that, have fun! Once the incredible value of this project has been recognized by a large community, all those things will probably be created by the cloud crowd in no time, right? :-)
 
 ## License
 
