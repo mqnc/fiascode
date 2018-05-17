@@ -1,5 +1,5 @@
 
-import sys
+import sys, os
 sys.path.append("buildtools")
 import cpype
 
@@ -9,19 +9,18 @@ buildDir = "build"
 env = Environment()
 env.VariantDir(buildDir, 'src')
 
-sourceNodes = Glob('src/*.cpy')
+sourceNodes = Glob(os.path.join('src', '*.cpy'))
 
-#cpypec = Builder(action = '"C:\Program Files\Python36\python" buildtools\cpype.py $SOURCE $TARGET')
 cpypec = Builder(action = cpype.translate, suffix=".lzz", src_suffix=".pyc")
 
 env.Append(BUILDERS = {'CPype' : cpypec})
 
-lzzc = Builder(action = 'buildtools\lzz -c $SOURCE')
+lzzc = Builder(action = os.path.join('buildtools', 'lzz') + ' -c $SOURCE')
 env.Append(BUILDERS = {'Lzz' : lzzc})
 
 cppList = []
 
-Command(buildDir + "/cpype.h", "buildtools/cpype.h", Copy("$TARGET", "$SOURCE"))
+Command(os.path.join(buildDir, "cpype.h"), os.path.join("buildtools", "cpype.h"), Copy("$TARGET", "$SOURCE"))
 
 for node in sourceNodes:
 	fname = str(node).replace("src", buildDir, 1)[:-4] # src/fname.lzz -> build/fname
