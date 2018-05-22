@@ -7,6 +7,9 @@ sys.path.append(cd + "/parsley")
 import parsley
 
 
+def concat(elems):
+	return ''.join(elems)
+
 def exception(txt):
 	raise SyntaxError(txt)
 	return txt
@@ -25,50 +28,43 @@ def makefor(iters, body, counter):
 
 	for ig in iters: # iterate through groups
 		for it in ig: # iterate through iterators in group
-			asgn = it['asgn'];
-			var = it['id'];
-		
+
 			box = ""
-		
-			if asgn['type'] == 'collection':
-				box = var + '__range'
-				res += 'auto ' + box + ' = all(' + asgn['collection'] + ');\n'
+			if it['asgn']['type'] == 'iterator':
+				box = it['id'] + '__iterator'
+				res += 'auto ' + box + ' = all(' + it['asgn']['iterator'] + ');\n'
 				it['box'] = box
 				
-			if asgn['type'] == 'range':
-				box = var + '__range'				
-				
-				if asgn['oper'] == '...':	
-					res += 'auto ' + var + ' = ' + asgn['from'] + ';\n'
-					it['box'] = var	
-				else:
-					res += 'auto ' + box + ' = make_range(' + asgn['from'] + ', ' + asgn['to'] + ');\n'
-					it['box'] = box
+			if it['asgn']['type'] == 'index':
+				box = it['id'] + '__index'				
+				res += 'auto ' + box + ' = ' + it['asgn']['from'] + ';\n'
+				it['box'] = box
 					
 		res += 'for(; '
 		for it in ig: # iterate through iterators in group
-			if it['asgn']['type'] == 'range' and it['asgn']['oper'] == '...':
-				res += 'true /*' + it['id'] + ' loops forever*/ && '
+			if it['asgn']['type'] == 'index':
+				if it['asgn']['oper'] == '...':
+					res += 'true /*' + it['id'] + ' loops forever*/ && '
+				elif it['asgn']['oper'] == '=>':
+					res += '!((' + it['box'] + ') == (' + it['asgn']['to'] + ')) && ';
 			else:
 				res += '!' + it['box'] + '.empty() && '
 		res = res[:-4] # delete last " && "
 		res += "; "
 		for it in ig: # iterate through iterators in group
-			if it['asgn']['type'] == 'range' and it['asgn']['oper'] == '...':
+			if it['asgn']['type'] == 'index':
 				res += it['box'] + '++, '
 			else:
 				res += it['box'] + '.popFront(), '
 		res = res[:-2] # delete last ", "
 		res += '){\n'
 		for it in ig: # iterate through iterators in group
-			if it['asgn']['type'] == 'range' and it['asgn']['oper'] == '...':
-				pass
-			elif it['asgn']['type'] == 'range' and it['asgn']['oper'] == '=>':
-				res += '\t const auto ' + it['id'] + ' = begin(' + it['box'] + ');\n'
-			else:		
-				res += '\t auto &' + it['id'] + ' = *begin(' + it['box'] + ');\n'
+			if it['asgn']['type'] == 'iterator':
+				res += '\t auto &' + it['id'] + ' = ' + it['box'] + '.front();\n'
+			else:
+				res += '\t const auto &' + it['id'] + ' = ' + it['box'] + ';\n'
 			
-	res += '#define Break goto loopend__' + str(counter) + ';\n\n'
+	res += '#define Break goto loopend__' + str(counter) + '; // deal with it óo´\n\n'
 	res += body
 	res += '\n\n#undef Break\n'
 	
@@ -134,103 +130,143 @@ def makefn(name, qualis, input, output, body):
 	return res
 
 def hash(charlist):
-	return hashlib.md5(''.join(charlist).encode("utf-8")).hexdigest()[0:10]
+	return hashlib.md5(concat(charlist).encode("utf-8")).hexdigest()[0:10]
 	
 t0 = time()
 
 fiascode = parsley.makeGrammar(r"""
 
-code = symbol*:s -> '#hdr\n#include "cpype.h"\n#end\n' + ''.join(s)
+##########
+# Basics #
+##########
 
-symbol = knownsymbol | identifier | anything
-knownsymbol = (comment | string | substitution | group | stray)
-stray = (groupstray | ifstray | fnstray | loopstray | switchstray):estray -> exception('Stray ' + estray + ' detected')
+code = symbol*:s -> '#hdr\n#include "cpype.h"\n#end\n' + concat(s)
 
-comment = (comment1 | comment2 | comment3)
-comment1 = <'/*' (~'*/' anything)* '*/'>
-comment2 = '//' (~'\n' anything)*:cmt '\n' -> '/*' + ''.join(cmt) + '*/\n' # lzz sometimes deletes line breaks
-comment3 = '\\*' (~'*\\' (innercomment3 | anything))*:cmt '*\\' -> '/*' + ''.join(cmt) + '*/'
-innercomment3 = '\\*' (~'*\\' (innercomment3 | anything))*:cmt '*\\' -> '/*' + ''.join(cmt) + '* /'
-
-ws = (' ' | '\t' | '\r' | '\n' | comment)*:space -> ''.join(space)
-
-string = simplestring | nakedrawstring | delimrawstring | superstring
-
-simplestring = <'"' (escaped | ~'"' anything)* '"'>
-escaped = <'\\' anything> # represents one backslash
-nakedrawstring = <'R"(' (~')"' anything)* ')"'>
-delimrawstring = <'R"' (~'(' anything)*:delim (~(')' token(delim) '"') anything)* ')' token(delim) '"'>
-superstring = '°°' (~'°°' anything)*:txt '°°' -> 'u8R"' + hash(txt) + '(' + ''.join(txt) + ')' + hash(txt) + '"'
-
-group = (parenthesed | bracketed | braced)
-parenthesed = '(' (~')' symbol)*:body ')' -> '(' + ''.join(body) + ')'
-bracketed   = '[' (~']' symbol)*:body ']' -> '[' + ''.join(body) + ']'
-braced      = '{' (~'}' symbol)*:body '}' -> '{' + ''.join(body) + '}'
-groupstray = (')' | ']' | '}')
-
+symbol       = known_symbol | identifier | anything # anything is defined as any character by parsley
+known_symbol = (comment | string | substitution | group | stray)
+stray        = (group_stray | if_stray | fn_stray | loop_stray | switch_stray):estray -> exception('Stray ' + estray + ' detected')
+ws = (' ' | '\t' | '\r' | '\n' | comment)*:space -> concat(space)
+group       = (parenthesed | bracketed | braced)
+parenthesed = '(' (~')' symbol)*:body ')' -> '(' + concat(body) + ')'
+bracketed   = '[' (~']' symbol)*:body ']' -> '[' + concat(body) + ']'
+braced      = '{' (~'}' symbol)*:body '}' -> '{' + concat(body) + '}'
+group_stray = (')' | ']' | '}')
 identifier = <(letter | '_') (letter | '_' | digit)*>
 
+substitution = declaration | branch_statement | loop_statement | function_statement # actual language grammar 
 
-substitution = branchstmt | loopstmt | functionstmt # actual language grammar 
+# Comments
+# --------
 
+comment        = (comment1 | comment2 | comment3)
+comment1       = <'/*' (~'*/' anything)* '*/'>
+comment2       = '//' (~'\n' anything)*:cmt '\n' -> '/*' + concat(cmt) + '*/\n' # lzz sometimes deletes line breaks
+comment3       = '\\*' (~'*\\' (inner_comment3 | anything))*:cmt '*\\' -> '/*' + concat(cmt) + '*/'
+inner_comment3 = '\\*' (~'*\\' (inner_comment3 | anything))*:cmt '*\\' -> '/*' + concat(cmt) + '* /'
 
-branchstmt = ifstmt | switchstmt
+# Strings
+# -------
 
-ifstmt     = 'If'     ifcondition:cond 'Then'   ifbody:body (elseifstmt | elsestmt | endifstmt):tail ->      'if(' + cond + '){' + ''.join(body) + '}' + tail
-elseifstmt = 'Elseif' ifcondition:cond 'Then'   ifbody:body (elseifstmt | elsestmt | endifstmt):tail -> 'else if(' + cond + '){' + ''.join(body) + '}' + tail
-elsestmt   = 'Else'                           elsebody:body                          endifstmt :tail -> 'else{'                  + ''.join(body) + '}' + tail
-endifstmt  = 'Endif' -> ''
-ifcondition = (~'Then' symbol)*:cond -> ''.join(cond)
-ifbody    = (~('Elseif' | 'Else' | 'Endif') symbol)*:body -> ''.join(body)
-elsebody  = (~'Endif' symbol)*:body -> ''.join(body)
-ifstray = ('Elseif' | 'Else' | 'Endif' | 'Then') # those should not be encountered first
+string = simple_string | naked_raw_string | raw_string_with_delimiter | utf8_raw_string
 
-switchstmt = 'Switch' switchcondition:cond switchbody:body 'Endswitch' -> 'switch(' + cond + '){\n' + body + '\n}'
-switchcondition = (~('Case' | 'Default' | 'Endswitch') symbol)*:cond -> ''.join(cond)
-switchbody = (case | default)*:body -> ''.join(body)
-case = 'Case' caseconditiongroup:cond 'Do' casebody:body caseend:end -> cond + '\n\t' + body + '\n' + end
-default = 'Default' casebody:body -> '\n' 'default: ' + body
-caseconditiongroup = casecondition:first (',' ws casecondition)*:rest ws -> ' '.join([first] + rest)
-casecondition = (~('Do' | ',') symbol)*:cond -> 'case ' + ''.join(cond) + ':'
-casebody = (~('Case' | 'Fall' | 'Default' | 'Endswitch')symbol)*:body -> ''.join(body)
-caseend = ('Fall' ws -> '') | (ws -> 'break;')
-switchstray = ('Case' | 'Default' | 'Fall' | 'Endswitch' | 'Do')
+simple_string             = <'"' (escaped | ~'"' anything)* '"'>
+escaped                   = <'\\' anything> # represents one backslash
+naked_raw_string          = <'R"(' (~')"' anything)* ')"'>
+raw_string_with_delimiter = <'R"' (~'(' anything)*:delim (~(')' token(delim) '"') anything)* ')' token(delim) '"'>
+utf8_raw_string           = '°°' (~'°°' anything)*:txt '°°' -> 'u8R"' + hash(txt) + '(' + concat(txt) + ')' + hash(txt) + '"'
 
 
-loopstmt = forstmt | whilestmt | repeatstmt
+#############
+# Variables #
+#############
 
-forstmt = 'For' iteratorlist:iters 'Do' forbody:body 'Loop' -> makefor(iters, body, loopcount.inc_get())
-iteratorlist = ws iteratoritem:first ws (',' ws iteratoritem)*:rest -> [first] + rest
-iteratoritem = (iteratorgroup:iter -> iter) | (iterator:iter -> [iter])
-iteratorgroup = '[' iterator:first (',' ws iterator)*:rest ']' ws -> [first] + rest
-iterator = identifier:id ws ':' ws iterassignment:asgn -> {'id':id, 'asgn':asgn}
-iterassignment = rangeiterator | otheriterator
-rangeiterator = rangefrom:frm rangeoperator:oper rangeto:to -> {'type':'range', 'from':frm, 'oper':oper, 'to':to}
-rangefrom = (~(rangeoperator | ',' | ']' | 'Do')symbol)*:iter -> ''.join(iter) # ',' | ']' | 'Do' has to be matched in order to break out when we are actually in "otheriterator"
-rangeoperator = ('...' | '=>')
-rangeto = (~(',' | 'Do' | ']')symbol)*:iter -> ''.join(iter)
-otheriterator = (~(',' | 'Do' | ']')symbol)*:asgn -> {'type':'collection', 'collection':''.join(asgn)}
-forbody = (~'Loop' symbol)*:body -> ''.join(body)
+declaration = val_declaration | var_declaration
 
-whilestmt = 'While' (~'Do' symbol)*:cond 'Do' (~'Loop' symbol)*:body 'Loop' -> 'while(' + ''.join(cond) + '){\n' + ''.join(body) + '}'
-repeatstmt = 'Repeat' (~('Until' | 'Whilst')symbol)*:body (untilcond | whilstcond):cond 'Loop' -> 'do{\n' + ''.join(body) + '\n}while(' + cond + ');'
-untilcond = 'Until' (~('Loop')symbol)*:cond -> '!(' + ''.join(cond) + ')'
-whilstcond = 'Whilst' (~('Loop')symbol)*:cond -> ''.join(cond)
-loopstray = ('Do' | 'Until' | 'Whilst' | 'Loop')
+val_declaration = 'Val' -> 'const auto'
+var_declaration = 'Var' -> 'auto'
 
 
-functionstmt = 'Fn' ws identifier:name ws qualifiers?:qualis ws inputpars:input ws outputpars:output ws fnbody:body 'Endfn'-> makefn(name, qualis, input, output, body)
-qualifiers = '[' (~']' symbol)*:qualis ']' -> ''.join(qualis)
-inputpars = ('(' parameterlist:input ')' | ws:input) -> input
-outputpars = ('->' ws '(' parameterlist:output ')' -> output) | ('->' ws returntype:output -> ''.join(output)) | (ws -> 'void')
-parameterlist = parameter:first (',' parameter)*:rest -> [first] + rest if first!=[] else []
-parameter = ws (~(')' | ',' | '=')(knownsymbol | identifier:id | anything))*:decl ('=' parassignment)?:asgn -> {'decl':''.join(decl), 'id':id, 'asgn':asgn} if decl != [] else []
-returntype = ws (~(':=' | 'Endfn')symbol)*:type -> type
-parassignment = (~(')' | ',')symbol)*:asgn -> ''.join(asgn)
-fnbody = (':=' (~'Endfn' symbol)*:body -> ''.join(body)) | (ws -> '')
-fnstray = ('->' | ':=' | 'Endfn')
+############
+# Branches #
+############
 
-""", {'exception':exception, 'makefor':makefor, 'loopcount':loopcount, 'makefn':makefn, 'hash':hash})
+branch_statement = if_statement | switch_statement
+
+# If Then
+# -------
+
+if_statement     = 'If'     if_condition:cond 'Then'   if_body:body (elseif_statement | else_statement | endif_statement):tail ->      'if(' + cond + '){' + concat(body) + '}' + tail
+elseif_statement = 'Elseif' if_condition:cond 'Then'   if_body:body (elseif_statement | else_statement | endif_statement):tail -> 'else if(' + cond + '){' + concat(body) + '}' + tail
+else_statement   = 'Else'                            else_body:body                                      endif_statement :tail -> 'else{'                  + concat(body) + '}' + tail
+endif_statement  = 'Endif' -> ''
+if_condition     = (~'Then' symbol)*:cond -> concat(cond)
+if_body          = (~('Elseif' | 'Else' | 'Endif') symbol)*:body -> concat(body)
+else_body        = (~'Endif' symbol)*:body -> concat(body)
+if_stray         = ('Elseif' | 'Else' | 'Endif' | 'Then') # those should not be encountered first
+
+# Switch Case
+# -----------
+
+switch_statement     = 'Switch' switch_condition:cond switch_body:body 'Endswitch' -> 'switch(' + cond + '){\n' + body + '\n}'
+switch_condition     = (~('Case' | 'Default' | 'Endswitch') symbol)*:cond -> concat(cond)
+switch_body          = (case | default)*:body -> concat(body)
+case                 = 'Case' case_condition_group:cond 'Do' case_body:body case_end:end -> cond + '\n\t' + body + '\n' + end
+default              = 'Default' case_body:body -> '\n' 'default: ' + body
+case_condition_group = case_condition:first (',' ws case_condition)*:rest ws -> ' '.join([first] + rest)
+case_condition       = (~('Do' | ',') symbol)*:cond -> 'case ' + concat(cond) + ':'
+case_body            = (~('Case' | 'Fall' | 'Default' | 'Endswitch')symbol)*:body -> concat(body)
+case_end             = ('Fall' ws -> '') | (ws -> 'break;')
+switch_stray         = ('Case' | 'Default' | 'Fall' | 'Endswitch' | 'Do')
+
+
+#########
+# Loops #
+#########
+
+loop_statement = for_statement | while_statement | repeat_statement
+
+# For Loop
+# --------
+
+for_statement       = 'For' iterator_list:iters 'Do' for_body:body 'Loop' -> makefor(iters, body, loopcount.inc_get())
+iterator_list       = ws iterator_item:first ws (',' ws iterator_item)*:rest -> [first] + rest
+iterator_item       = (iterator_group:iter -> iter) | (iterator:iter -> [iter])
+iterator_group      = '[' iterator:first (',' ws iterator)*:rest ']' ws -> [first] + rest
+iterator            = identifier:id ws ':' ws iterator_assignment:asgn -> {'id':id, 'asgn':asgn}
+iterator_assignment = index | range_iterator
+index               = index_from:frm index_operator:oper index_to:to -> {'type':'index', 'from':frm, 'oper':oper, 'to':to}
+index_from          = (~(index_operator | ',' | ']' | 'Do')symbol)*:iter -> concat(iter) # ',' | ']' | 'Do' has to be matched in order to break out when we are actually in "range_iterator"
+index_operator      = ('...' | '=>')
+index_to            = (~(',' | 'Do' | ']')symbol)*:iter -> concat(iter)
+range_iterator      = (~(',' | 'Do' | ']')symbol)*:asgn -> {'type':'iterator', 'iterator':concat(asgn)}
+for_body            = (~'Loop' symbol)*:body -> concat(body)
+
+# While / Repeat
+# --------------
+
+while_statement  = 'While' (~'Do' symbol)*:cond 'Do' (~'Loop' symbol)*:body 'Loop' -> 'while(' + concat(cond) + '){\n' + concat(body) + '}'
+repeat_statement = 'Repeat' (~('Until' | 'Whilst')symbol)*:body (until_condition | whilst_condition):cond 'Loop' -> 'do{\n' + concat(body) + '\n}while(' + cond + ');'
+until_condition  = 'Until' (~('Loop')symbol)*:cond -> '!(' + concat(cond) + ')'
+whilst_condition = 'Whilst' (~('Loop')symbol)*:cond -> concat(cond)
+loop_stray       = ('Do' | 'Until' | 'Whilst' | 'Loop')
+
+
+#############
+# Functions #
+#############
+
+function_statement   = 'Fn' ws identifier:name ws qualifiers?:qualis ws input_parameters:input ws return_values:output ws function_body:body 'Endfn'-> makefn(name, qualis, input, output, body)
+qualifiers           = '[' (~']' symbol)*:qualis ']' -> concat(qualis)
+input_parameters     = ('(' parameter_list:input ')' | ws:input) -> input
+return_values        = ('->' ws '(' parameter_list:output ')' -> output) | ('->' ws return_type:output -> concat(output)) | (ws -> 'void')
+parameter_list       = parameter:first (',' parameter)*:rest -> [first] + rest if first!=[] else []
+parameter            = ws (~(')' | ',' | '=')(known_symbol | identifier:id | anything))*:decl ('=' parameter_assignment)?:asgn -> {'decl':concat(decl), 'id':id, 'asgn':asgn} if decl != [] else []
+return_type          = ws (~(':=' | 'Endfn')symbol)*:type -> type
+parameter_assignment = (~(')' | ',')symbol)*:asgn -> concat(asgn)
+function_body        = (':=' (~'Endfn' symbol)*:body -> concat(body)) | (ws -> '')
+fn_stray             = ('->' | ':=' | 'Endfn')
+
+""", {'concat':concat, 'exception':exception, 'makefor':makefor, 'loopcount':loopcount, 'makefn':makefn, 'hash':hash})
 
 def prettify(input):
 	input = input.replace('\r\n', '\n')

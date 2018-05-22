@@ -7,9 +7,9 @@ Your program is written as a bunch of .cpy files. They are translated into lzz f
 ## Examples
 
 So far, C-Pype supports the following constructs:  
-(powerful for loops and functions with multiple return parameters are the main selling points, scroll down a bit if you are in a hurry)
+(powerful For-loops and functions with multiple return values are the main selling points, scroll down a bit if you are in a hurry)
 
-### If statements without parantheses and braces
+### If-statements without parantheses and braces
 ```
 If a==0 Then
 	cout << "a is 0\n";
@@ -20,7 +20,7 @@ Else
 Endif
 ```
 
-### Switch branches without traps
+### Switch-branches without traps
 ```
 Switch a
 	Case 0 Do
@@ -48,7 +48,7 @@ Repeat
 Until a==30 Loop
 ```
 
-### Readable nested and parallel For loops
+### Readable nested and parallel For-loops
 ```
 For a:0=>5 Do // for a from 0 towards 5 (5 is not included, like in Python)
 	cout << a;
@@ -63,7 +63,7 @@ For x:0=>width, y:0=>height Do // For loops can be nested like in Julia
 	If x==10 && y==10 Then Break Endif // and escaped through all levels
 Loop
 
-For [a:va, b:vb] Do // And you can iterate through arrays parallely, stopping when the shortest array ends
+For [a:va, b:vb] Do // and you can iterate through arrays parallely, stopping when the shortest array ends
 	a=b;
 Loop
 
@@ -75,17 +75,17 @@ Loop
 ### Functions with multiple return values that are actually usable
 ```
 // definition:
-Fn twice(int a_in, int b_in, int c_in) -> (int a_out, int b_out, int c_out):=
-	a_out = 2*a_in;
-	b_out = 2*b_in;
-	c_out = 2*c_in;
+Fn twice(int a, int b, int c) -> (int aa, int bb, int cc):=
+	aa = 2*a;
+	bb = 2*b;
+	cc = 2*c;
 Endfn
 
 Fn div(int x=0, int y=1) -> (int q=x/y, int r=x%y) Endfn // default input and return parameters
 
 // call:
-auto abc = twice(20, 30, 40);
-cout << abc.aout << abc.bout << abc.cout << endl;
+auto aabbcc = twice(20, 30, 40);
+cout << aabbcc.aa << aabbcc.bb << aabbcc.cc << endl;
 
 auto result = div(20, 7);
 cout << "20/7 is " << result.q << " with remainder " << result.r << endl;
@@ -93,8 +93,18 @@ cout << "20/7 is " << result.q << " with remainder " << result.r << endl;
 
 ### The little things
 ```
-cout << °°Привет, мир!°° // UTF8 raw strings
+Val c=0; // const auto
+Var x=0; // auto
+cout << °°Привет, мир!°°; // UTF8 raw strings
 ```
+
+### Native C++
+
+C-Pype is designed to be compatible with C++ (in all conscience, it can't be guaranteed that there aren't some obscure constructs that are broken now). So if your need is not covered, you can just write plain C++ and it will be copied verbatim. Except if your nomenclature clashes with C-Pype keywords, that is.
+
+### Custom constructs
+
+The complete C-Pype grammar is written in Parsley in a single python file (buildtools/cpype.py) and just requires one header (buildtools/cpype.h) to work. It can easily be extended to support your heretical custom macros. A nice summary of the Parsley grammar can be found here http://parsley.readthedocs.io/en/latest/reference.html.
 
 See test.cpy for more details and look at the generated test.lzz (or test.cpp and test.h) files to see what happens to your code.
 

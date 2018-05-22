@@ -9,7 +9,7 @@ using namespace std;
 Fn main(int argc, char *argv[]) -> int:=
 
 	cout << "counting a from 0 towards (and excluding) 5\n";
-	For a:0=>5 Do
+	For a:int(0)=>5 Do
 	
 		cout << "set a to " << a << endl;
 		
@@ -72,7 +72,8 @@ Fn main(int argc, char *argv[]) -> int:=
 		
 	Loop
 
-	int a=0;
+	Var a=0; // auto
+	Val c=0; // const auto
 	
 	While a<10 Do 
 		a++;
@@ -89,7 +90,7 @@ Fn main(int argc, char *argv[]) -> int:=
 	Until a==30 Loop
 	cout << "a should be 30 and is " << a << endl;
 	
-	int i = 0;
+	Var i = 0;
 	cout << "outer scope i is " << i << endl;
 	cout << "first 5 primes using inner scope i: ";
 	For i:{2,3,5,7,11} Do
