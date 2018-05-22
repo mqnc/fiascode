@@ -134,7 +134,7 @@ def hash(charlist):
 	
 t0 = time()
 
-fiascode = parsley.makeGrammar(r"""
+grammar = parsley.makeGrammar(r"""
 
 ##########
 # Basics #
@@ -151,9 +151,9 @@ parenthesed = '(' (~')' symbol)*:body ')' -> '(' + concat(body) + ')'
 bracketed   = '[' (~']' symbol)*:body ']' -> '[' + concat(body) + ']'
 braced      = '{' (~'}' symbol)*:body '}' -> '{' + concat(body) + '}'
 group_stray = (')' | ']' | '}')
-identifier = <(letter | '_') (letter | '_' | digit)*>
+identifier  = <(letter | '_') (letter | '_' | digit)*>
 
-substitution = declaration | branch_statement | loop_statement | function_statement # actual language grammar 
+substitution = declaration | branch_statement | loop_statement | function_statement | keyword_call # actual language grammar 
 
 # Comments
 # --------
@@ -257,14 +257,21 @@ loop_stray       = ('Do' | 'Until' | 'Whilst' | 'Loop')
 
 function_statement   = 'Fn' ws identifier:name ws qualifiers?:qualis ws input_parameters:input ws return_values:output ws function_body:body 'Endfn'-> makefn(name, qualis, input, output, body)
 qualifiers           = '[' (~']' symbol)*:qualis ']' -> concat(qualis)
-input_parameters     = ('(' parameter_list:input ')' | ws:input) -> input
-return_values        = ('->' ws '(' parameter_list:output ')' -> output) | ('->' ws return_type:output -> concat(output)) | (ws -> 'void')
-parameter_list       = parameter:first (',' parameter)*:rest -> [first] + rest if first!=[] else []
-parameter            = ws (~(')' | ',' | '=')(known_symbol | identifier:id | anything))*:decl ('=' parameter_assignment)?:asgn -> {'decl':concat(decl), 'id':id, 'asgn':asgn} if decl != [] else []
+input_parameters     = ('(' fn_parameter_list:input ')' | ws:input) -> input
+return_values        = ('->' ws '(' fn_parameter_list:output ')' -> output) | ('->' ws return_type:output -> concat(output)) | (ws -> 'void')
+fn_parameter_list    = fn_parameter:first (',' fn_parameter)*:rest -> [first] + rest if first!=[] else []
+fn_parameter         = ws (~(')' | ',' | '=')(known_symbol | identifier:id | anything))*:decl ('=' parameter_assignment)?:asgn -> {'decl':concat(decl), 'id':id, 'asgn':asgn} if decl != [] else []
 return_type          = ws (~(':=' | 'Endfn')symbol)*:type -> type
 parameter_assignment = (~(')' | ',')symbol)*:asgn -> concat(asgn)
 function_body        = (':=' (~'Endfn' symbol)*:body -> concat(body)) | (ws -> '')
 fn_stray             = ('->' | ':=' | 'Endfn')
+
+keyword_call         = ~('for' ws '(') identifier:fname ws '(' ws key_parameter_list:params ')' -> str({'fname':fname, 'params':params})
+key_parameter_list   = (par_and_comma)*:rest key_parameter:last -> rest + [last]
+par_and_comma        = maybe_key_parameter:par ',' -> par
+maybe_key_parameter  = key_parameter | position_parameter
+key_parameter        = ws identifier:id ws ':' ws parameter_assignment:asgn -> {'tpye':'key', 'id':id, 'asgn':asgn}
+position_parameter   = ws parameter_assignment:asgn -> {'tpye':'pos', 'asgn':asgn}
 
 """, {'concat':concat, 'exception':exception, 'makefor':makefor, 'loopcount':loopcount, 'makefn':makefn, 'hash':hash})
 
@@ -358,7 +365,7 @@ def translate(target, source, env):
 	with open(str(source[0]), encoding='utf-8') as fin:
 		incode = fin.read()
 
-	translated = prettify(fiascode(incode).code())
+	translated = prettify(grammar(incode).code())
 
 	#with open(sys.argv[2], 'w', encoding='utf-8') as fout:
 	with open(str(target[0]), 'w', encoding='utf-8') as fout:
