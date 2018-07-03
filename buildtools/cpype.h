@@ -1,6 +1,8 @@
 
 #include <initializer_list>
 
+#define move__if__owned(e) (std::forward<decltype(e)>(e))
+
 namespace {
 	// A range which wraps a pair of iterators
 	template<typename Iterator>

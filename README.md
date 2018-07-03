@@ -4,6 +4,10 @@ A preprepreprocessor for C++ 14 written in Python. Its purpose is to reduce the 
 
 Your program is written as a bunch of .cpy files. They are translated into lzz files which are then split into c++ headers and sources.
 
+## Important Note
+
+I have now actually tried to work on an actual project with this and to my great surprise, there are still many things that I have to fix before this is remotely usable.
+
 ## Examples
 
 So far, C-Pype supports the following constructs:  
@@ -84,10 +88,10 @@ Endfn
 Fn div(int x=0, int y=1) -> (int q=x/y, int r=x%y) Endfn // default input and return parameters
 
 // call:
-auto aabbcc = twice(20, 30, 40);
+Val aabbcc = twice(20, 30, 40);
 cout << aabbcc.aa << aabbcc.bb << aabbcc.cc << endl;
 
-auto result = div(20, 7);
+Val result = div(20, 7);
 cout << "20/7 is " << result.q << " with remainder " << result.r << endl;
 ```
 

@@ -1,0 +1,45 @@
+const (and other qualifiers) after function input parameter parens
+"->" is not stray
+(check diffs)
+do Break and Return properly
+#hdr inside #hdr has to be avoided
+don't change // to /**/ (or an inside */ will suddenly end it)
+report // bug to lzz
+Klasseninitialisierung mit = kann lzz auch nicht
+/**/ inside \**\ must work
+reset counters for new source file
+deal with difficult result values like references (can't be initialized and then reassigned)
+Idee: nicht Return überschreiben, sondern All definieren, so dass man return All machen kann
+cpp14 Compiler-spezifisch
+debug/release
+Concat(1, a, b) -> stringstream ss; ss << 1, a, b; return ss.str();
+lassen sich Operatoren auch als Fn definieren?
+"\\" escapet das zweite "
+
+@int bla = blub(blew);
+-->
+int bla = blub(blew);
+cout << "file.cpy(231): int bla = blub(blew); --> bla = " << bla;
+
+bei Fns ohne return struct auch einen Namen für die Rückgabevariable haben für Konsistenz
+Sprache komplett parsen? {für verbatim c++}
+Semikolon am Zeilenende automatisch?
+stray warnings
+lzz unterstützt keine unicode multiline string literals :/
+
+unique pointers vereinfachen
+
+
+https://github.com/nlohmann/json (MIT)
+https://github.com/zaphoyd/websocketpp (no license?)
+http://www.partow.net/programming/strtk/index.html (MIT)
+https://github.com/yhirose/cpp-peglib (MIT)
+Zip range https://ideone.com/BtYdF4 (Joachim)
+Nested range https://ideone.com/it7ff4 (Joachim)
+Keyword args https://ideone.com/qYUTkz (Joachim)
+http://eigen.tuxfamily.org/index.php?title=Main_Page (MPL2)
+https://pybullet.org/wordpress/ (zlib)
+https://github.com/SCons/scons (custom, free)
+
+https://github.com/mjspncr/lzz3 (GPL3)
+https://github.com/morousg/simple-opencl (GPL)

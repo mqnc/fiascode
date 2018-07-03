@@ -14,19 +14,25 @@ def exception(txt):
 	raise SyntaxError(txt)
 	return txt
 
-
-class LoopCounter():
+class LoopCounter(): # for uniquely labeling escape goto targets
 	c = 0;
 	def inc_get(self):
 		self.c += 1;
 		return self.c;
 loopcount = LoopCounter()
 	
-def makefor(iters, body, counter):
+def hash(charlist): # for generating delimiters in raw strings
+	return hashlib.md5(concat(charlist).encode("utf-8")).hexdigest()[0:10]	
+
+	
+def makeFor(iters, body, counter):
 
 	res = '{\n'
 
 	for ig in iters: # iterate through groups
+	
+		# initialization of iterators/indices before loop begins
+		
 		for it in ig: # iterate through iterators in group
 
 			box = ""
@@ -39,8 +45,13 @@ def makefor(iters, body, counter):
 				box = it['id'] + '__index'				
 				res += 'auto ' + box + ' = ' + it['asgn']['from'] + ';\n'
 				it['box'] = box
-					
+		
+		# begin of loop header
+		
 		res += 'for(; '
+		
+		# conditions for continue
+		
 		for it in ig: # iterate through iterators in group
 			if it['asgn']['type'] == 'index':
 				if it['asgn']['oper'] == '...':
@@ -51,6 +62,9 @@ def makefor(iters, body, counter):
 				res += '!' + it['box'] + '.empty() && '
 		res = res[:-4] # delete last " && "
 		res += "; "
+		
+		# incrementing iterators/indices
+		
 		for it in ig: # iterate through iterators in group
 			if it['asgn']['type'] == 'index':
 				res += it['box'] + '++, '
@@ -64,8 +78,16 @@ def makefor(iters, body, counter):
 			else:
 				res += '\t const auto &' + it['id'] + ' = ' + it['box'] + ';\n'
 			
+	# definition of exit jump		
+			
 	res += '#define Break goto loopend__' + str(counter) + '; // deal with it óo´\n\n'
+	
+	# loop body
+	
 	res += body
+	
+	# undef exit jump
+	
 	res += '\n\n#undef Break\n'
 	
 	for ig in iters: # iterate through groups
@@ -75,13 +97,29 @@ def makefor(iters, body, counter):
 	res += 'loopend__' + str(counter) + ':\n'
 	return res
 
-def makefn(name, qualis, input, output, body):
+	
+	
+	
+def makeFn(name, qualis, input, output, body):
 
 	res = ''
 	if qualis==None: qualis=''
 	
-	if isinstance(output, str): # output is a string, not a list -> no struct for return
-		res = qualis + ' ' + output + ' ' + name + '('
+	# construct parameter struct for call with keyword parameters
+
+	if len(input) != 0: 
+		res += '#hdr\nstruct ' + name + '__params{\n'
+		for par in input:
+			res += par['decl']
+			if par['asgn'] != None: res += '=' + par['asgn']
+			res += '; '
+		res += '};\n#end\n'
+	
+	if isinstance(output, str): 
+	
+		# output is a string, not a list -> no multi-value struct for return
+	
+		res += qualis + ' ' + output + ' ' + name + '('
 		for par in input:
 			res += par['decl']
 			if par['asgn'] != None: res += '=' + par['asgn']
@@ -90,24 +128,40 @@ def makefn(name, qualis, input, output, body):
 		res += '){\n\n'
 		res += body + '\n\n}\n'
 	
-	else:
-		res = 'struct ' + name + '__result{'
+	else:	
+		
+		# construct return struct
+	
+		res += 'struct ' + name + '__result{'
 		for par in output:
-			res += par['decl'] + '; '
+			res += 'const ' + par['decl'] + '; '
 		res += '};\n'
+		
+		# head: qualifiers, return type and function name
+		
 		res += qualis + ' ' + name + '__result ' + name + '('
+		
+		# input parameters
+		
 		for par in input:
 			res += par['decl']
 			if par['asgn'] != None: res += '=' + par['asgn']
 			res += ', '
 		if len(input) != 0: res = res[:-2]; # delete last comma
 		res += '){\n'
+		
+		# initialize return values and assign default values if defined
+		
 		for par in output:
 			res += '\t' + par['decl']
 			if par['asgn'] != None: res += '=' + par['asgn']
 			res += ';\n'
 		
+		# function body
+		
 		if body != '':
+		
+			# return statement
 		
 			res += '#define Return return {' # ugly hack until I todo this properly
 			for par in output:
@@ -119,6 +173,9 @@ def makefn(name, qualis, input, output, body):
 			res += '\tReturn\n#undef Return\n'
 		
 		else:
+		
+			# no actual body (assigning default values was enough)
+		
 			res += '\treturn {'
 			for par in output:
 				res += par['id'] + ', '
@@ -127,10 +184,28 @@ def makefn(name, qualis, input, output, body):
 			
 		res += '}\n'
 	
+	
+	# construct overloaded definition for call with keyword parameters
+	
+	if len(input) != 0 and name!='main': 
+		res += qualis + ' '
+		if isinstance(output, str):
+			res += output + ' '
+		else:
+			res += name + '__result '
+		res += name + '(' + name + '__params const& args) {\n'
+		res += '\treturn ' + name + '('
+		for par in input:
+			res += 'args.' + par['id'] + ', '
+		res = res[:-2]; # delete last comma
+		res += ');}'
+	
 	return res
 
-def hash(charlist):
-	return hashlib.md5(concat(charlist).encode("utf-8")).hexdigest()[0:10]
+
+	
+#def makeCall:
+
 	
 t0 = time()
 
@@ -228,7 +303,7 @@ loop_statement = for_statement | while_statement | repeat_statement
 # For Loop
 # --------
 
-for_statement       = 'For' iterator_list:iters 'Do' for_body:body 'Loop' -> makefor(iters, body, loopcount.inc_get())
+for_statement       = 'For' iterator_list:iters 'Do' for_body:body 'Loop' -> makeFor(iters, body, loopcount.inc_get())
 iterator_list       = ws iterator_item:first ws (',' ws iterator_item)*:rest -> [first] + rest
 iterator_item       = (iterator_group:iter -> iter) | (iterator:iter -> [iter])
 iterator_group      = '[' iterator:first (',' ws iterator)*:rest ']' ws -> [first] + rest
@@ -255,7 +330,7 @@ loop_stray       = ('Do' | 'Until' | 'Whilst' | 'Loop')
 # Functions #
 #############
 
-function_statement   = 'Fn' ws identifier:name ws qualifiers?:qualis ws input_parameters:input ws return_values:output ws function_body:body 'Endfn'-> makefn(name, qualis, input, output, body)
+function_statement   = 'Fn' ws identifier:name ws qualifiers?:qualis ws input_parameters:input ws return_values:output ws function_body:body 'Endfn'-> makeFn(name, qualis, input, output, body)
 qualifiers           = '[' (~']' symbol)*:qualis ']' -> concat(qualis)
 input_parameters     = ('(' fn_parameter_list:input ')' | ws:input) -> input
 return_values        = ('->' ws '(' fn_parameter_list:output ')' -> output) | ('->' ws return_type:output -> concat(output)) | (ws -> 'void')
@@ -273,7 +348,7 @@ maybe_key_parameter  = key_parameter | position_parameter
 key_parameter        = ws identifier:id ws ':' ws parameter_assignment:asgn -> {'tpye':'key', 'id':id, 'asgn':asgn}
 position_parameter   = ws parameter_assignment:asgn -> {'tpye':'pos', 'asgn':asgn}
 
-""", {'concat':concat, 'exception':exception, 'makefor':makefor, 'loopcount':loopcount, 'makefn':makefn, 'hash':hash})
+""", {'concat':concat, 'exception':exception, 'makeFor':makeFor, 'loopcount':loopcount, 'makeFn':makeFn, 'hash':hash})
 
 def prettify(input):
 	input = input.replace('\r\n', '\n')

@@ -149,8 +149,8 @@ Fn main(int argc, char *argv[]) -> int:=
 	auto ab = fullMontyAndNicelyCommented(2);
 	cout << "14=" << ab.a_new << ", 18=" << ab.b_new << endl;
 	auto keywordcall = divWithRest(50, y:6);
-	{int i=0; for(i:vi){}} // make sure that native c++ range-based for loops are not mistaken as a call with keywords
-	cout << "50 = " << keywordcall.q << "*6 + " << keywordcall.r << endl;
+	//{int i=0; for(i:vi){}} // make sure that native c++ range-based for loops are not mistaken as a call with keywords
+	//cout << "50 = " << keywordcall.q << "*6 + " << keywordcall.r << endl;
 	
 	return 0;
 Endfn
